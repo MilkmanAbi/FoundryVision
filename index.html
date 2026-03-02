@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FoundryVision</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+    :root {
+      --bg:       #0a0a0a;
+      --surface:  #111111;
+      --border:   #222222;
+      --dim:      #444444;
+      --text:     #d4d4d4;
+      --muted:    #666666;
+      --accent:   #00e5ff;
+      --green:    #00c853;
+      --yellow:   #ffd600;
+      --red:      #ff1744;
+      --mono:     'IBM Plex Mono', monospace;
+      --sans:     'IBM Plex Sans', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── Header ─── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 100;
+    }
+
+    .wordmark {
+      font-family: var(--mono);
+      font-weight: 600;
+      font-size: 15px;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .wordmark span { color: var(--muted); font-weight: 400; }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--dim);
+      transition: background 0.3s;
+    }
+    .status-dot.live  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.stale { background: var(--yellow); }
+    .status-dot.dead  { background: var(--red); }
+
+    .status-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .frame-counter {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--dim);
+    }
+
+    /* ─── Layout ─── */
+    main {
+      display: grid;
+      grid-template-columns: 1fr 1fr 360px;
+      grid-template-rows: auto auto;
+      gap: 1px;
+      background: var(--border);
+      min-height: calc(100vh - 49px);
+    }
+
+    .panel {
+      background: var(--surface);
+      padding: 20px;
+    }
+
+    .panel-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ─── Score display ─── */
+    .score-block { margin-bottom: 24px; }
+
+    .score-name {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .score-value {
+      font-family: var(--mono);
+      font-size: 48px;
+      font-weight: 600;
+      line-height: 1;
+      transition: color 0.4s;
+    }
+
+    .score-bar-track {
+      height: 3px;
+      background: var(--border);
+      margin-top: 10px;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.35s ease, background 0.4s;
+      width: 0%;
+      background: var(--accent);
+    }
+
+    .confidence-pill {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 3px 10px;
+      border-radius: 2px;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 600;
+      background: var(--border);
+      color: var(--muted);
+      transition: background 0.4s, color 0.4s;
+    }
+
+    /* ─── Stat grid ─── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .stat {
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+    }
+
+    .stat-key {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .stat-val {
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .stat-unit {
+      font-size: 11px;
+      color: var(--muted);
+      margin-left: 2px;
+    }
+
+    /* ─── Chart ─── */
+    .chart-wrap {
+      grid-column: 1 / 3;
+      height: 160px;
+      position: relative;
+    }
+
+    canvas#chart {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .chart-axis-label {
+      position: absolute;
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--dim);
+      letter-spacing: 0.08em;
+    }
+    .chart-axis-label.top-left  { top: 4px; left: 0; }
+    .chart-axis-label.bot-left  { bottom: 4px; left: 0; }
+    .chart-axis-label.top-right { top: 4px; right: 0; }
+
+    /* ─── Narration panel ─── */
+    .narration-panel {
+      grid-row: 1 / 3;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .narration-latest {
+      background: var(--surface);
+      padding: 20px;
+      flex: 0 0 auto;
+    }
+
+    .narration-text {
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 300;
+      line-height: 1.65;
+      color: var(--text);
+      min-height: 80px;
+      transition: opacity 0.3s;
+    }
+
+    .narration-text.loading { opacity: 0.4; font-style: italic; }
+
+    .narration-meta {
+      margin-top: 12px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--dim);
+    }
+
+    .narration-history {
+      background: var(--surface);
+      padding: 20px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .narration-history::-webkit-scrollbar { width: 4px; }
+    .narration-history::-webkit-scrollbar-track { background: transparent; }
+    .narration-history::-webkit-scrollbar-thumb { background: var(--border); }
+
+    .history-entry {
+      border-left: 2px solid var(--border);
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      opacity: 0.6;
+      transition: opacity 0.3s;
+    }
+    .history-entry:hover { opacity: 1; }
+
+    .history-entry-meta {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--dim);
+      margin-bottom: 4px;
+    }
+
+    .history-entry-text {
+      font-size: 12px;
+      font-weight: 300;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+
+    /* ─── No-signal overlay ─── */
+    #no-signal {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 10, 10, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      backdrop-filter: blur(2px);
+    }
+
+    #no-signal.hidden { display: none; }
+
+    .no-signal-box {
+      text-align: center;
+      padding: 40px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .no-signal-box h2 {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 12px;
+    }
+
+    .no-signal-box p {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ─── Colours by confidence ─── */
+    .c-very_high { color: var(--green) !important; }
+    .c-high      { color: #69f0ae !important; }
+    .c-uncertain { color: var(--yellow) !important; }
+    .c-low       { color: #ff9100 !important; }
+    .c-very_low  { color: var(--muted) !important; }
+
+    .bg-very_high { background: rgba(0, 200, 83, 0.15) !important; color: var(--green) !important; }
+    .bg-high      { background: rgba(105, 240, 174, 0.1) !important; color: #69f0ae !important; }
+    .bg-uncertain { background: rgba(255, 214, 0, 0.1) !important; color: var(--yellow) !important; }
+    .bg-low       { background: rgba(255, 145, 0, 0.1) !important; color: #ff9100 !important; }
+    .bg-very_low  { background: var(--border) !important; color: var(--muted) !important; }
+
+    .bar-very_high { background: var(--green) !important; }
+    .bar-high      { background: #69f0ae !important; }
+    .bar-uncertain { background: var(--yellow) !important; }
+    .bar-low       { background: #ff9100 !important; }
+    .bar-very_low  { background: var(--dim) !important; }
+  </style>
+</head>
+<body>
+
+<div id="no-signal">
+  <div class="no-signal-box">
+    <h2>Waiting for signal</h2>
+    <p>
+      ESP32-S3 not detected.<br>
+      Make sure the board is powered and on the same network.<br><br>
+      Server: <code>python -m host.server</code>
+    </p>
+  </div>
+</div>
+
+<header>
+  <div class="wordmark">Foundry<span>Vision</span></div>
+  <div class="status-row">
+    <div class="status-dot" id="status-dot"></div>
+    <div class="status-label" id="status-label">waiting</div>
+    <div class="frame-counter" id="frame-counter">—</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- Score panel -->
+  <div class="panel">
+    <div class="panel-label">Detection</div>
+
+    <div class="score-block">
+      <div class="score-name">Person</div>
+      <div class="score-value" id="person-score">—</div>
+      <div class="score-bar-track">
+        <div class="score-bar-fill" id="person-bar"></div>
+      </div>
+      <div class="confidence-pill" id="confidence-pill">—</div>
+    </div>
+
+    <div class="score-block">
+      <div class="score-name">No Person</div>
+      <div class="score-value c-very_low" id="noperson-score">—</div>
+      <div class="score-bar-track">
+        <div class="score-bar-fill" id="noperson-bar" style="background: var(--dim)"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Telemetry panel -->
+  <div class="panel">
+    <div class="panel-label">Telemetry</div>
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="stat-key">Inference</div>
+        <div class="stat-val" id="stat-infer">—<span class="stat-unit">ms</span></div>
+      </div>
+      <div class="stat">
+        <div class="stat-key">Avg Infer</div>
+        <div class="stat-val" id="stat-avg-infer">—<span class="stat-unit">ms</span></div>
+      </div>
+      <div class="stat">
+        <div class="stat-key">Brightness</div>
+        <div class="stat-val" id="stat-brightness">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-key">Contrast</div>
+        <div class="stat-val" id="stat-contrast">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-key">Arena Used</div>
+        <div class="stat-val" id="stat-arena">—<span class="stat-unit">%</span></div>
+      </div>
+      <div class="stat">
+        <div class="stat-key">Free Heap</div>
+        <div class="stat-val" id="stat-heap">—<span class="stat-unit">KB</span></div>
+      </div>
+      <div class="stat">
+        <div class="stat-key">Detections</div>
+        <div class="stat-val" id="stat-detections">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-key">Total Frames</div>
+        <div class="stat-val" id="stat-frames">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Narration panel (spans 2 rows) -->
+  <div class="narration-panel">
+    <div class="narration-latest panel">
+      <div class="panel-label">LLM Narration</div>
+      <div class="narration-text" id="narration-text">
+        Waiting for first narration...
+      </div>
+      <div class="narration-meta" id="narration-meta">—</div>
+    </div>
+    <div class="narration-history panel">
+      <div class="panel-label">History</div>
+      <div id="narration-history-list"></div>
+    </div>
+  </div>
+
+  <!-- Chart (spans 2 cols) -->
+  <div class="panel chart-wrap">
+    <div class="panel-label">Person Score — Last 60 Frames</div>
+    <canvas id="chart"></canvas>
+  </div>
+
+</main>
+
+<script>
+  // ─── State ────────────────────────────────────────────────────────────────
+  const HISTORY_LEN = 60;
+  const scoreHistory = new Array(HISTORY_LEN).fill(null);
+  let lastFrameTime  = null;
+  let narrationCount = 0;
+
+  // ─── WebSocket ────────────────────────────────────────────────────────────
+  let ws;
+  function connect() {
+    ws = new WebSocket(`ws://${location.host}/ws`);
+
+    ws.onopen = () => {
+      setStatus('live');
+      document.getElementById('no-signal').classList.add('hidden');
+    };
+
+    ws.onclose = ws.onerror = () => {
+      setStatus('dead');
+      setTimeout(connect, 2000);
+    };
+
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === 'frame')     handleFrame(msg.data);
+        if (msg.type === 'narration') handleNarration(msg.data, msg.frame);
+      } catch (_) {}
+    };
+  }
+  connect();
+
+  // ─── Status indicator ─────────────────────────────────────────────────────
+  function setStatus(state) {
+    const dot   = document.getElementById('status-dot');
+    const label = document.getElementById('status-label');
+    dot.className   = `status-dot ${state}`;
+    label.textContent = state;
+  }
+
+  // Stale detection — if no frame in 3s, mark stale
+  let staleTimer;
+  function resetStaleTimer() {
+    clearTimeout(staleTimer);
+    staleTimer = setTimeout(() => setStatus('stale'), 3000);
+  }
+
+  // ─── Frame handler ────────────────────────────────────────────────────────
+  function handleFrame(f) {
+    resetStaleTimer();
+    setStatus('live');
+
+    const scores  = f.scores  || {};
+    const perf    = f.perf    || {};
+    const img     = f.image   || {};
+    const mem     = f.memory  || {};
+    const session = f.session || {};
+    const conf    = scores.confidence || 'very_low';
+
+    // Header
+    document.getElementById('frame-counter').textContent = `frame #${f.frame}`;
+
+    // Scores
+    const pct = (scores.person || 0);
+    document.getElementById('person-score').textContent  = `${(pct * 100).toFixed(1)}%`;
+    document.getElementById('noperson-score').textContent = `${((scores.no_person || 0) * 100).toFixed(1)}%`;
+
+    // Bar
+    const bar = document.getElementById('person-bar');
+    bar.style.width = `${(pct * 100).toFixed(1)}%`;
+    bar.className   = `score-bar-fill bar-${conf}`;
+
+    document.getElementById('person-score').className = `score-value c-${conf}`;
+
+    const pill = document.getElementById('confidence-pill');
+    pill.textContent  = conf.replace('_', ' ');
+    pill.className    = `confidence-pill bg-${conf}`;
+
+    // No person bar
+    document.getElementById('noperson-bar').style.width =
+      `${((scores.no_person || 0) * 100).toFixed(1)}%`;
+
+    // Stats
+    setText('stat-infer',       (perf.inference_ms || 0).toFixed(1));
+    setText('stat-avg-infer',   (perf.avg_ms || 0).toFixed(1));
+    setText('stat-brightness',  (img.mean_brightness || 0).toFixed(0));
+    setText('stat-contrast',    (img.contrast || 0).toFixed(3));
+    setText('stat-arena',       (mem.arena_pct || 0).toFixed(1));
+    setText('stat-heap',        Math.round((mem.free_heap || 0) / 1024).toString());
+    setText('stat-detections',  (session.detections || 0).toString());
+    setText('stat-frames',      (session.frames || 0).toString());
+
+    // Chart history
+    scoreHistory.push(pct);
+    if (scoreHistory.length > HISTORY_LEN) scoreHistory.shift();
+    drawChart();
+  }
+
+  // ─── Narration handler ────────────────────────────────────────────────────
+  function handleNarration(text, frameNum) {
+    narrationCount++;
+
+    // Latest
+    const el = document.getElementById('narration-text');
+    el.textContent  = text;
+    el.className    = 'narration-text';
+    document.getElementById('narration-meta').textContent =
+      `frame #${frameNum} · narration #${narrationCount}`;
+
+    // History
+    const list = document.getElementById('narration-history-list');
+    const entry = document.createElement('div');
+    entry.className = 'history-entry';
+    entry.innerHTML = `
+      <div class="history-entry-meta">frame #${frameNum}</div>
+      <div class="history-entry-text">${text}</div>
+    `;
+    list.insertBefore(entry, list.firstChild);
+
+    // Keep only last 20 in DOM
+    while (list.children.length > 20) list.removeChild(list.lastChild);
+  }
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+  function setText(id, val) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    // Keep the stat-unit span if present
+    const unit = el.querySelector('.stat-unit');
+    el.textContent = val;
+    if (unit) el.appendChild(unit);
+  }
+
+  // ─── Chart ────────────────────────────────────────────────────────────────
+  const canvas  = document.getElementById('chart');
+  const ctx     = canvas.getContext('2d');
+
+  function drawChart() {
+    const dpr  = window.devicePixelRatio || 1;
+    const W    = canvas.parentElement.clientWidth;
+    const H    = canvas.parentElement.clientHeight - 36; // minus label
+    canvas.width  = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.scale(dpr, dpr);
+
+    ctx.clearRect(0, 0, W, H);
+
+    const pad   = { t: 10, r: 4, b: 20, l: 32 };
+    const inner = { w: W - pad.l - pad.r, h: H - pad.t - pad.b };
+
+    // Grid lines at 0, 0.5, 1.0
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth   = 1;
+    [0, 0.5, 1.0].forEach(v => {
+      const y = pad.t + inner.h * (1 - v);
+      ctx.beginPath();
+      ctx.moveTo(pad.l, y);
+      ctx.lineTo(pad.l + inner.w, y);
+      ctx.stroke();
+
+      ctx.fillStyle = '#333';
+      ctx.font      = `9px 'IBM Plex Mono', monospace`;
+      ctx.fillText(`${(v * 100).toFixed(0)}%`, 0, y + 3);
+    });
+
+    // Line
+    const data = scoreHistory.filter(v => v !== null);
+    if (data.length < 2) return;
+
+    const step = inner.w / (HISTORY_LEN - 1);
+
+    // Fill
+    ctx.beginPath();
+    data.forEach((v, i) => {
+      const x = pad.l + (HISTORY_LEN - data.length + i) * step;
+      const y = pad.t + inner.h * (1 - v);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    const lastX = pad.l + (HISTORY_LEN - 1) * step;
+    ctx.lineTo(lastX, pad.t + inner.h);
+    ctx.lineTo(pad.l + (HISTORY_LEN - data.length) * step, pad.t + inner.h);
+    ctx.closePath();
+
+    const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + inner.h);
+    grad.addColorStop(0,   'rgba(0, 229, 255, 0.15)');
+    grad.addColorStop(1,   'rgba(0, 229, 255, 0)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Stroke
+    ctx.beginPath();
+    data.forEach((v, i) => {
+      const x = pad.l + (HISTORY_LEN - data.length + i) * step;
+      const y = pad.t + inner.h * (1 - v);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = '#00e5ff';
+    ctx.lineWidth   = 1.5;
+    ctx.stroke();
+
+    // 0.5 threshold line
+    const thY = pad.t + inner.h * 0.5;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad.l, thY);
+    ctx.lineTo(pad.l + inner.w, thY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  window.addEventListener('resize', drawChart);
+  drawChart();
+</script>
+</body>
+</html>
