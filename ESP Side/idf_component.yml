@@ -1,0 +1,24 @@
+## FoundryVision — esp/main/idf_component.yml
+## Component dependencies fetched from the IDF Component Registry.
+## The upstream example used override_path pointing to a local clone —
+## we use the registry version so this builds standalone.
+
+dependencies:
+  espressif/esp-tflite-micro:
+    version: ">=1.0.0"
+  espressif/esp32-camera:
+    version: "~2.0.5"
+
+  ## BSP packages — only pulled in based on menuconfig selection
+  espressif/esp32_s2_kaluga_kit:
+    rules:
+      - if: "$TFLITE_USE_BSP_KALUGA == 1"
+    version: "3.*"
+  espressif/esp32_s3_eye:
+    rules:
+      - if: "$TFLITE_USE_BSP_S3_EYE == 1"
+    version: "4.*"
+  espressif/esp32_s3_korvo_2:
+    rules:
+      - if: "$TFLITE_USE_BSP_KORVO_2 == 1"
+    version: "2.*"
