@@ -1,6 +1,6 @@
 # FoundryVision
 
-Real-time TensorFlow Lite Micro inference on an ESP32-S3, with live telemetry streamed to a local LLM that narrates the model's reasoning. Built as a teaching tool for a CCA computer vision workshop.
+Real-time TensorFlow Lite Micro inference on an ESP32-S3, with live telemetry streamed to a local LLM that narrates the model's reasoning. Built as a teaching tool.
 
 ---
 
